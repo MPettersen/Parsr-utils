@@ -132,7 +132,12 @@ def parse_file(
     if not wait_til_done(url=f"{STATUS_URL}/{file_id}"):
         if attempt < ATTEMPT_LIMIT:
             LOG.warning(f"Parser timed out {ATTEMPT_LIMIT} times || File: {file_name}")
-            parse_file(file_name=file_name, input_path=input_path, output_path=output_path, attempt=attempt+1)
+            parse_file(
+                file_name=file_name,
+                input_path=input_path,
+                output_path=output_path,
+                config_path=config_path,
+                attempt=attempt+1)
         else:
             create_folder(path=output_path, folder=file_name)
             LOG.warning(f"Created empty output folder so that the PDF will be skipped when reattemped || file: {file_name}")
