@@ -1,0 +1,87 @@
+{
+    "version": 0.9,
+    "extractor": {
+      "pdf": "pdfminer",
+      "ocr": "tesseract",
+      "language": ["eng", "fra"]
+    },
+    "cleaner": [
+      "drawing-detection",
+      [
+        "image-detection",
+        {
+          "ocrImages": false
+        }
+      ],
+      "out-of-page-removal",
+      [
+        "whitespace-removal",
+        {
+          "minWidth": 0
+        }
+      ],
+      [
+        "redundancy-detection",
+        {
+          "minOverlap": 0.5
+        }
+      ],
+      [
+        "table-detection",
+        {
+          "checkDrawings": false,
+          "runConfig": [
+            {
+              "pages": [],
+              "flavor": "lattice"
+            }
+          ]
+        }
+      ],
+      [
+        "header-footer-detection",
+        {
+          "ignorePages": [],
+          "maxMarginPercentage": 8
+        }
+      ],
+      "link-detection",
+      "words-to-line-new",
+      [
+        "reading-order-detection",
+        {
+          "minVerticalGapWidth": 5,
+          "minColumnWidthInPagePercent": 15
+        }
+      ],
+      [
+        "lines-to-paragraph",
+        {
+          "tolerance": 0.25
+        }
+      ],
+      [
+        "table-of-contents-detection",
+        {
+          "pageKeywords": ["pagina", "page", "pag"]
+        }
+      ],
+      "ml-heading-detection",
+      "list-detection",
+      "page-number-detection",
+      "hierarchy-detection"
+    ],
+    "output": {
+      "granularity": "word",
+      "includeMarginals": false,
+      "includeDrawings": false,
+      "formats": {
+        "json": true,
+        "text": true,
+        "csv": true,
+        "markdown": true,
+        "pdf": false,
+        "simpleJson": true
+      }
+    }
+  }
