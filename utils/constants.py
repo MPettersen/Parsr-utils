@@ -8,7 +8,7 @@ class FileType(Enum):
     CSV = 'csv'
 
 
-IMAGE = 'axerev/parsr'
+IMAGE = 'axarev/parsr'
 ATTEMPT_LIMIT = 3
 DOCKER_TIMEOUT = 1800 # 30 minutes
 

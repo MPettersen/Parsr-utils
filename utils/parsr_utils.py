@@ -95,7 +95,7 @@ def find_container(image:str=IMAGE, log_error=True) -> Container | None:
     Find the container if it is running
 
     Args:
-        image (str): The image of the container. Defaults to "axerev/parsr"
+        image (str): The image of the container. Defaults to "axarev/parsr"
         log_error (bool): Flag for logging error
     
     Returns:
@@ -205,8 +205,12 @@ def run_parsr(**kwargs):
         valid_file_ext (list[str]): List of valid file extensions. Defaults to ["pdf"]
     """
     start_parsr()
-    parse_files(**kwargs)
-    stop_parsr()
+    try:
+        parse_files(**kwargs)
+        stop_parsr()
+    except Exception as e:
+        LOG.error(e)
+        stop_parsr()
 
 
 def start_parsr(image:str=IMAGE):
@@ -214,15 +218,12 @@ def start_parsr(image:str=IMAGE):
     Start the Parsr container
 
     Args:
-        image (str): The image of the container. Defaults to "axerev/parsr"
+        image (str): The image of the container. Defaults to "axarev/parsr"
     """
     global CONTAINER
-    try:
-        CONTAINER = find_container(image, log_error=False)
-        LOG.info(f"{image} is already running")
-    except:
-        client = docker.from_env()
-        CONTAINER = client.containers.run(image, detach=True, ports={3001: 3001})
+    client = docker.from_env()
+    CONTAINER = client.containers.run(image, detach=True, ports={3001: 3001})
+    time.sleep(5)
     LOG.info(f"PDF parser server started || container: {image}")
 
 
@@ -231,18 +232,20 @@ def stop_parsr(image:str=IMAGE):
     Stop the Parsr container
 
     Args:
-        image (str): The image of the container. Defaults to "axerev/parsr"
+        image (str): The image of the container. Defaults to "axarev/parsr"
     """
     LOG.info(f"Stopping {image}")
     if CONTAINER is not None:
         CONTAINER.stop()
     else:
-        container = find_container(image)
-        container.stop()
-    # Give the container a few seconds to before moving on
-    time.sleep(5)
-    LOG.info(f"{image} was successfully restarted")
-
+        try:
+            container = find_container(image, log_error=False)
+            container.stop()
+        except:
+            LOG.info(f"{image} wasn't running")
+            return
+    LOG.info(f"{image} was successfully stopped")
+            
 
 def send_to_parser(file_name:str, path:str, config_path:str) -> str:
     """
