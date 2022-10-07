@@ -9,8 +9,8 @@ class FileType(Enum):
 
 
 IMAGE = 'axarev/parsr'
-ATTEMPT_LIMIT = 3
-DOCKER_TIMEOUT = 1800 # 30 minutes
+ATTEMPT_LIMIT = 1
+DOCKER_TIMEOUT = 7200 # 30 minutes
 
 BASE_URL = 'http://localhost:3001/api/v1'
 UPLOAD_URL = f"{BASE_URL}/document"

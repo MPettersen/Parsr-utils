@@ -129,7 +129,9 @@ def parse_file(
         attempt (int): Attempt counter, retry limit
     """
     file_id = send_to_parser(file_name=file_name, path=input_path, config_path=config_path)
-    if not wait_til_done(url=f"{STATUS_URL}/{file_id}"):
+    if wait_til_done(url=f"{STATUS_URL}/{file_id}"):
+        download_files(file_id=file_id, file_name=file_name, output_path=output_path)
+    else:
         if attempt < ATTEMPT_LIMIT:
             LOG.warning(f"Parser timed out {ATTEMPT_LIMIT} times || File: {file_name}")
             parse_file(
@@ -140,12 +142,8 @@ def parse_file(
                 attempt=attempt+1)
         else:
             create_folder(path=output_path, folder=file_name)
-            LOG.warning(f"Created empty output folder so that the PDF will be skipped when reattemped || file: {file_name}")
-            stop_parsr()
-            error_message = f"Parser timed out too many times || limit: {ATTEMPT_LIMIT} || File: {file_name}"
-            LOG.error(error_message)
-            raise(Exception(error_message))
-    download_files(file_id=file_id, file_name=file_name, output_path=output_path)
+            LOG.warning(f"Failed to parse time due to timeout, moving on to the next || timeout: {seconds_to_time(DOCKER_TIMEOUT)} || file: {file_name}")
+            LOG.info(f"Created empty output folder so that the PDF will be skipped when reattemped || file {file_name}")
     
 
 def parse_files(
@@ -214,8 +212,50 @@ def run_parsr(**kwargs):
         parse_files(**kwargs)
         stop_parsr()
     except Exception as e:
-        LOG.error(e)
+        LOG.error(f"Fatal error, shutting down || error_message: {e}")
         stop_parsr()
+
+
+def seconds_to_time(seconds:int) -> str:
+    """
+    Converts seconds to a human readable time format
+    e.g. 7200s -> 02:00:00 (HH:MM:SS)
+
+    Args:
+        seconds (int): Seconds
+
+    Returns:
+        (str) Time format of the seconds
+    """
+    seconds = seconds % (24 * 3600)
+    hour = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds %= 60
+    return "%d:%02d:%02d" % (hour, minutes, seconds)
+
+
+def send_to_parser(file_name:str, path:str, config_path:str) -> str:
+    """
+    Send file to the parser
+
+    Args:
+        file_name (str): Name of file, without file extension
+        path (str): Complete path to file, including the file name and extension
+        config_path (str): Path of config file used by the parser
+    
+    Returns:
+        (str) The file id provided by Parsr
+    """
+    files = {
+        'file': (file_name, open(path, 'rb'), 'application/pdf'),
+        'config': ('config', open(config_path, 'rb'), 'application/json')
+    }
+    upload = requests.post(UPLOAD_URL, files=files)
+    if not upload.ok:
+        raise(Exception(upload.reason))
+
+    return upload.text
 
 
 def start_parsr(image:str=IMAGE):
@@ -250,29 +290,6 @@ def stop_parsr(image:str=IMAGE):
             LOG.info(f"{image} wasn't running")
             return
     LOG.info(f"{image} was successfully stopped")
-            
-
-def send_to_parser(file_name:str, path:str, config_path:str) -> str:
-    """
-    Send file to the parser
-
-    Args:
-        file_name (str): Name of file, without file extension
-        path (str): Complete path to file, including the file name and extension
-        config_path (str): Path of config file used by the parser
-    
-    Returns:
-        (str) The file id provided by Parsr
-    """
-    files = {
-        'file': (file_name, open(path, 'rb'), 'application/pdf'),
-        'config': ('config', open(config_path, 'rb'), 'application/json')
-    }
-    upload = requests.post(UPLOAD_URL, files=files)
-    if not upload.ok:
-        raise(Exception(upload.reason))
-
-    return upload.text
 
 
 def validate_file(
