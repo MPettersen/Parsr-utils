@@ -1,12 +1,13 @@
 import os
 import sys
 import time
-from typing import Literal
 import docker
 import logging
 import requests
 
+from typing import Literal
 from datetime import datetime
+from itertools import repeat
 from functools import partial
 from docker.models.containers import Container
 
@@ -36,7 +37,7 @@ def create_folder(path:str, folder:str):
         os.mkdir(f"{path}{folder}")
 
 
-def download(url:str, output_path:str, file_name:str, file_type:FileType):
+def download(url:str, output_path:str, file_name:str, file_type:str) -> bool:
     """
     Download output from parser
 
@@ -44,17 +45,18 @@ def download(url:str, output_path:str, file_name:str, file_type:FileType):
         url (str): URL to retrieve the parsed output
         output_path (str): Directory to store parsed files
         file_name (str): Name of file that was parsed
-        file_type (FileType): Type of parsed output to download
+        file_type (str): Type of parsed output to download
     """
     r = requests.get(url)
     if not r.ok:
         LOG.error(f"Download failed || url: {url} || status_code: {r.status_code} || reason: {r.reason}")
-        return
+        return False
     create_folder(path=output_path, folder=file_name)
-    output_path = f"{output_path}{file_name}/{file_name}.{file_type}"
-    with open(output_path, 'wb') as f:
+    path = f"{output_path}{file_name}/{file_name}.{file_type}"
+    with open(path, 'wb') as f:
         f.write(r.content)
-        LOG.debug(f"File successfully downloaded and stored in {output_path}")
+        LOG.debug(f"File successfully downloaded and stored in {path}")
+    return True
 
 
 def download_files(
@@ -80,14 +82,18 @@ def download_files(
     """
     partial_downlaod = partial(download, output_path=output_path, file_name=file_name)
     file_url = f"/{file_id}?download=1"
+    json_passed, md_passed, text_passed, csv_passed = repeat(False, 4)
     if json:
-        partial_downlaod(url=f"{JSON_URL}{file_url}", file_type=FileType.JSON)
+        json_passed = partial_downlaod(url=f"{JSON_URL}{file_url}", file_type='json')
     if md:
-        partial_downlaod(url=f"{MD_URL}{file_url}", file_type=FileType.MD)
+        md_passed = partial_downlaod(url=f"{MD_URL}{file_url}", file_type='md.zip')
     if text:
-        partial_downlaod(url=f"{TEXT_URL}{file_url}", file_type=FileType.TEXT)
+        text_passed = partial_downlaod(url=f"{TEXT_URL}{file_url}", file_type='txt')
     if csv:
-        partial_downlaod(url=f"{CSV_URL}{file_url}", file_type=FileType.CSV)
+        csv_passed = partial_downlaod(url=f"{CSV_URL}{file_url}", file_type='csv')
+    
+    if not json_passed and not md_passed and not text_passed and not csv_passed:
+        parse_failed(output_path=output_path, file_name=file_name)
 
 
 def find_container(image:str=IMAGE, log_error=True) -> Container | None:
@@ -109,6 +115,12 @@ def find_container(image:str=IMAGE, log_error=True) -> Container | None:
     if log_error:
         LOG.error(error_msg)
     raise(Exception(error_msg))
+
+
+def parse_failed(output_path, file_name):
+    create_folder(path=output_path, folder=file_name)
+    LOG.warning(f"Failed to parse time due to timeout, moving on to the next || timeout: {seconds_to_time(DOCKER_TIMEOUT)} || file: {file_name}")
+    LOG.info(f"Created empty output folder so that the PDF will be skipped when reattemped || file {file_name}")
 
 
 def parse_file(
@@ -141,9 +153,9 @@ def parse_file(
                 config_path=config_path,
                 attempt=attempt+1)
         else:
-            create_folder(path=output_path, folder=file_name)
-            LOG.warning(f"Failed to parse time due to timeout, moving on to the next || timeout: {seconds_to_time(DOCKER_TIMEOUT)} || file: {file_name}")
-            LOG.info(f"Created empty output folder so that the PDF will be skipped when reattemped || file {file_name}")
+            parse_failed(output_path=output_path, file_name=file_name)
+            return False
+    return True
     
 
 def parse_files(
@@ -170,12 +182,12 @@ def parse_files(
         if not valid:
             continue
         LOG.info(f"Parsing started: {i}")
-        parse_file(
+        parsed = parse_file(
             file_name=file_name,
             input_path=f"{input_path}{i}",
             output_path=output_path,
             config_path=config_path)
-        LOG.info(f"Parsing completed: {i}")
+        if parsed: LOG.info(f"Parsing completed: {i}")
     LOG.info(f"All files have been parsed || output folder: {output_path}")
 
 
@@ -207,8 +219,8 @@ def run_parsr(**kwargs):
         config_path (str): Path of config file used by the parser
         valid_file_ext (list[str]): List of valid file extensions. Defaults to ["pdf"]
     """
-    start_parsr()
     try:
+        start_parsr()
         parse_files(**kwargs)
         stop_parsr()
     except Exception as e:
