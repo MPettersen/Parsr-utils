@@ -118,9 +118,10 @@ def find_container(image:str=IMAGE, log_error=True) -> Container | None:
 
 
 def parse_failed(output_path, file_name):
-    create_folder(path=output_path, folder=file_name)
+    # Uncomment this if you want the file to be skipped on the next run
+    # create_folder(path=output_path, folder=file_name)
+    # LOG.info(f"Created empty output folder so that the PDF will be skipped when reattemped || file {file_name}")
     LOG.warning(f"Failed to parse time due to timeout, moving on to the next || timeout: {seconds_to_time(DOCKER_TIMEOUT)} || file: {file_name}")
-    LOG.info(f"Created empty output folder so that the PDF will be skipped when reattemped || file {file_name}")
 
 
 def parse_file(

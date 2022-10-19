@@ -1,16 +1,6 @@
-from enum import Enum
-
-
-class FileType(Enum):
-    JSON = 'json'
-    MD = 'md.zip'
-    TEXT = 'txt'
-    CSV = 'csv'
-
-
 IMAGE = 'axarev/parsr'
 ATTEMPT_LIMIT = 1
-DOCKER_TIMEOUT = 57_600 # 30 minutes
+DOCKER_TIMEOUT = 1_800 # 30 minutes
 
 BASE_URL = 'http://localhost:3001/api/v1'
 UPLOAD_URL = f"{BASE_URL}/document"
